@@ -57,8 +57,9 @@ python3 "$TARE"/ccaudit.py --days 30 --doctor --csv /tmp/usage.csv
 
 One API response is written to the transcript as one entry *per content block*,
 each repeating the same usage object. If "duplicate entries collapsed" is zero,
-the dedupe key isn't matching and totals may be inflated by 30-80%. Say so
-rather than reporting the numbers as fact.
+the dedupe key isn't matching and totals may be badly inflated — 86% on the
+data this tool was developed against. Say so rather than reporting the numbers
+as fact.
 
 ## Step 2 — establish what kind of problem this is
 
@@ -147,25 +148,32 @@ Offer the HTML report if they want to look themselves:
 python3 "$TARE"/ccaudit.py --days 30 --doctor --html report.html
 ```
 
-And the redacted markdown summary if they want to file an issue. It contains no
-prompts, file paths, file contents, command arguments or account identifiers:
+And the redacted markdown summary if they want to share their numbers — to ask
+someone else what they're missing, or to compare against another user's. It
+contains no prompts, file paths, file contents, command arguments, session ids
+or account identifiers:
 
 ```bash
 python3 "$TARE"/ccaudit.py --days 30 --bug-report bug.md
 ```
 
-## Known false positives — don't over-report these
+Offer this as a way to get help or compare, not as evidence for a bug — by
+this point the diagnosis above has usually already answered the question.
 
-- **"Usage blocks repeated under >2 request ids"** fires on small auxiliary
-  calls that legitimately repeat with an identical cached prefix. Only treat it
-  as a retry loop if the repeated requests are individually large in `input` or
-  `output`, not merely large in cached tokens.
+## Findings that need interpretation — don't over- or under-report these
+
 - **"Requests between 23:00-06:00"** is meaningless for anyone who works late
   or lives across a timezone boundary from where the `--tz` default resolved.
   Confirm before calling it background activity.
-- **Model weights are a proxy.** `MODEL_RATES` in `ccaudit.py` is an editable
-  table, and newer models may carry placeholder rates. Never present a
-  model's cost share as authoritative without checking that table first.
+- **The repeated-usage check only sees generation, by design.** It sizes
+  requests by `input + output` alone, so it cannot catch a retry loop whose
+  individual calls are small and ride a large cached prefix — that shape is
+  indistinguishable from benign auxiliary calls in the usage data. If it does
+  fire, take it seriously; if it doesn't, that is not proof there was no loop.
+- **Models marked `*` have no published rate.** The reports price them with an
+  Opus-equivalent placeholder and say so in a finding and a footnote. Repeat
+  that marking when you present their numbers: their share of weight is an
+  artifact of the guess, so compare them by requests and tokens instead.
 
 ## Do not conclude "it's a bug" from local data alone
 
