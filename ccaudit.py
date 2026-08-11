@@ -406,9 +406,12 @@ def run_checks(requests, tools, stats, tz):
                 "repeating the same usage object. Summing raw lines would have "
                 f"overstated totals by {100 * dupes / max(n, 1):.0f}%."))
 
+    # Size the request by what it actually generated. Counting cached tokens
+    # here made every small auxiliary call sharing a big cached prefix look
+    # large, so near-identical 3-in/172-out calls tripped the check in bulk.
     sig = defaultdict(set)
     for r in requests:
-        if sum(r[k] for k in USAGE_KEYS) > 5000:
+        if r["input_tokens"] + r["output_tokens"] > 5000:
             sig[(r["model"], r["input_tokens"], r["output_tokens"],
                  r["cache_creation_input_tokens"],
                  r["cache_read_input_tokens"])].add(r["request_id"])
