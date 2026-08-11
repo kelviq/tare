@@ -1,0 +1,11 @@
+# Generated reports and exports — these contain real usage data
+*.csv
+report.html
+bug.md
+*.jsonl
+
+# Local notes
+HANDOFF.md
+
+__pycache__/
+*.pyc
