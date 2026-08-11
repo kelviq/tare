@@ -28,7 +28,7 @@ finding, then show the evidence for it.
 3. **Never post, upload, or send results anywhere** unless the user
    explicitly asks. The redacted summary is safe to share; sharing it is
    still the user's call, not yours.
-4. **Only `--bug-report` output is redacted.** Everything else — session
+4. **Only `--share` output is redacted.** Everything else — session
    ids, project names, file paths in `--by detail` — is private. Fine to
    show the user; never to be pasted into anything public.
 5. **Don't manufacture a verdict.** If the numbers are proportionate, say
@@ -68,7 +68,7 @@ network:
 
 | Script | Purpose |
 |---|---|
-| `ccaudit.py` | Parses `~/.claude/projects/**/*.jsonl`. Text summary, HTML report, CSV, redacted bug report. |
+| `ccaudit.py` | Parses `~/.claude/projects/**/*.jsonl`. Text summary, HTML report, CSV, redacted shareable summary. |
 | `forensics.py` | Reads the CSV. Finds spikes, session shape, concurrency, rolling-window load. |
 | `ccreport.py` | SVG rendering, imported by `ccaudit.py`. Not run directly. |
 
@@ -126,7 +126,7 @@ paths relative to `$TARE`, CSV via `ccaudit.py --days N --csv`):
   USD-equivalent proxy from `MODEL_RATES`; give the number with that caveat,
   and exclude models marked `*`.
 - **`report` / "export a spreadsheet" / `share`** — `--html`, `--csv`,
-  `--bug-report` respectively; write to the user's working directory unless
+  `--share` respectively; write to the user's working directory unless
   they say where.
 
 Answer the question asked, offer the deeper diagnosis only if the numbers
@@ -225,7 +225,7 @@ contains no prompts, file paths, file contents, command arguments, session ids
 or account identifiers:
 
 ```bash
-python3 "$TARE"/ccaudit.py --days 30 --bug-report bug.md
+python3 "$TARE"/ccaudit.py --days 30 --share share.md
 ```
 
 Offer this as a way to get help or compare, not as evidence for a bug — by

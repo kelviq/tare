@@ -201,7 +201,7 @@ on a schedule.
 prompts and your files; this contains neither:
 
 ```bash
-python3 skills/tare/ccaudit.py --days 30 --bug-report share.md
+python3 skills/tare/ccaudit.py --days 30 --share share.md
 ```
 
 A 5KB markdown summary — totals, daily table, model split, tool names,
