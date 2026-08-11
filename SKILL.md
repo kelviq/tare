@@ -13,7 +13,8 @@ finding, then show the evidence for it.
 
 ## Scripts
 
-All in `scripts/`, stdlib only, no network:
+The scripts sit in the same directory as this SKILL.md. Stdlib only, no
+network:
 
 | Script | Purpose |
 |---|---|
@@ -21,13 +22,27 @@ All in `scripts/`, stdlib only, no network:
 | `forensics.py` | Reads the CSV. Finds spikes, session shape, concurrency, rolling-window load. |
 | `ccreport.py` | SVG rendering, imported by `ccaudit.py`. Not run directly. |
 
+**Resolve the script path before running anything.** Bash commands run from
+the user's project directory, not from this skill's directory, so relative
+paths will not find the scripts. Set `TARE` to this skill's own directory —
+the one this SKILL.md was loaded from (for a plugin install that is
+`${CLAUDE_PLUGIN_ROOT}/skills/tare`; for a personal install typically
+`~/.claude/skills/tare`). Verify it before trusting it:
+
+```bash
+ls "$TARE/ccaudit.py" "$TARE/forensics.py"
+```
+
+If that fails, find the scripts before doing anything else — do not fall
+back to improvising your own analysis.
+
 ## Step 1 — verify the parser before trusting any number
 
 The transcript format is internal to Claude Code and changes between releases.
 Run this first, every time:
 
 ```bash
-python3 scripts/ccaudit.py --dump-sample
+python3 "$TARE"/ccaudit.py --dump-sample
 ```
 
 Check that `requestId`, `message.usage`, `message.model` and `timestamp` are
@@ -37,7 +52,7 @@ user the parser needs updating — do not present numbers you don't trust.
 Then run the audit and check the dedupe count in the header:
 
 ```bash
-python3 scripts/ccaudit.py --days 30 --doctor --csv /tmp/usage.csv
+python3 "$TARE"/ccaudit.py --days 30 --doctor --csv /tmp/usage.csv
 ```
 
 One API response is written to the transcript as one entry *per content block*,
@@ -58,7 +73,7 @@ whole analysis:
 Then:
 
 ```bash
-python3 scripts/forensics.py /tmp/usage.csv
+python3 "$TARE"/forensics.py /tmp/usage.csv
 ```
 
 Look at the daily table for a **discontinuity**. Usage that steps up 3-10x on a
@@ -68,7 +83,7 @@ changed that day, and identifying what it was usually is the answer.
 ## Step 3 — for a 5-hour limit, check the window
 
 ```bash
-python3 scripts/forensics.py /tmp/usage.csv --day YYYY-MM-DD --at YYYY-MM-DDTHH:MM
+python3 "$TARE"/forensics.py /tmp/usage.csv --day YYYY-MM-DD --at YYYY-MM-DDTHH:MM
 ```
 
 The window is rolling, so it does not clear because the user walked away.
@@ -102,8 +117,8 @@ Check concentration too. If one project, one model, or one tool accounts for
 ## Step 5 — tool attribution
 
 ```bash
-python3 scripts/ccaudit.py --days 30 --by tool --top 20
-python3 scripts/ccaudit.py --days 30 --by detail --top 20
+python3 "$TARE"/ccaudit.py --days 30 --by tool --top 20
+python3 "$TARE"/ccaudit.py --days 30 --by detail --top 20
 ```
 
 Two numbers per tool. **Injected** is what the tool's output added to context.
@@ -129,14 +144,14 @@ Structure the answer like this:
 Offer the HTML report if they want to look themselves:
 
 ```bash
-python3 scripts/ccaudit.py --days 30 --doctor --html report.html
+python3 "$TARE"/ccaudit.py --days 30 --doctor --html report.html
 ```
 
 And the redacted markdown summary if they want to file an issue. It contains no
 prompts, file paths, file contents, command arguments or account identifiers:
 
 ```bash
-python3 scripts/ccaudit.py --days 30 --bug-report bug.md
+python3 "$TARE"/ccaudit.py --days 30 --bug-report bug.md
 ```
 
 ## Known false positives — don't over-report these

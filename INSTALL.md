@@ -2,19 +2,19 @@
 
 ## Personal skill (simplest — works immediately)
 
-```bash
-mkdir -p ~/.claude/skills/tare
-cp -r SKILL.md scripts ~/.claude/skills/tare/
-```
-
-Copy your existing `ccaudit.py` and `ccreport.py` in alongside `forensics.py`:
+The repository root is the skill: `SKILL.md` sits next to the scripts it
+runs. So installing is one step:
 
 ```bash
-cp ccaudit.py ccreport.py ~/.claude/skills/tare/scripts/
+git clone https://github.com/OWNER/tare ~/.claude/skills/tare
 ```
+
+(Or copy the files by hand — `SKILL.md`, `ccaudit.py`, `ccreport.py` and
+`forensics.py` must end up in the same directory.)
 
 Claude Code watches `~/.claude/skills/` and picks up valid `SKILL.md` files
 automatically — no restart needed. Type `/` and confirm `tare` appears.
+Updating is `git pull` in that directory.
 
 Two ways to use it:
 
@@ -48,7 +48,9 @@ tare-plugin/
 ├── skills/
 │   └── tare/
 │       ├── SKILL.md
-│       └── scripts/
+│       ├── ccaudit.py
+│       ├── ccreport.py
+│       └── forensics.py
 └── commands/
     └── tare.md              # see the note below
 ```
