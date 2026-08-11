@@ -49,6 +49,12 @@ MODEL_RATES = {
     "sonnet": {"in": 3.00,  "out": 15.00},
     "haiku":  {"in": 0.80,  "out": 4.00},
 }
+# Families with no published pricing. Their entries above are placeholders
+# copied from Opus, so any weight or share attributed to them is an artifact
+# of that guess, not a measurement. Everything derived from weight marks them
+# with an asterisk and says so. Remove a family from here once you replace its
+# rate with a real one.
+ESTIMATED_FAMILIES = {"fable", "mythos"}
 CACHE_WRITE_MULT = 1.25
 CACHE_READ_MULT = 0.10
 CHARS_PER_TOKEN = 4.0     # rough, for sizing tool results
@@ -265,6 +271,26 @@ def family(model):
     return next((k for k in MODEL_RATES if k in m), "other")
 
 
+def rate_is_estimated(model):
+    """True when this model's rate is a placeholder rather than a real price."""
+    return family(model) in ESTIMATED_FAMILIES
+
+
+def model_label(model):
+    """Model name, asterisked when its weight rests on a guessed rate."""
+    return f"{model} *" if rate_is_estimated(model) else model
+
+
+def estimated_note(requests):
+    """Footnote naming the guessed-rate models present, or None if there are none."""
+    est = sorted({r["model"] for r in requests if rate_is_estimated(r["model"])})
+    if not est:
+        return None
+    return (f"* {', '.join(est)} — no published rate; weight uses an "
+            "Opus-equivalent placeholder. Compare their requests and tokens, "
+            "not their share of weight.")
+
+
 def weight(r):
     if isinstance(r.get("cost_usd"), (int, float)):
         return float(r["cost_usd"])
@@ -441,12 +467,30 @@ def run_checks(requests, tools, stats, tz):
                     "past the cache TTL, force a full rewrite each turn at 1.25× "
                     "the input rate. A plausible mechanism for sudden quota burn."))
 
+    est = [r for r in requests if rate_is_estimated(r["model"])]
+    if est:
+        est_w = sum(weight(r) for r in est)
+        seen_est = sorted({r["model"] for r in est})
+        names = ", ".join(seen_est)
+        one = len(seen_est) == 1
+        est_tok = sum(sum(r[k] for k in USAGE_KEYS) for r in est)
+        out.append(("warn", "Some weight rests on a placeholder rate",
+                    f"{names} {'has' if one else 'have'} no published price, so "
+                    f"MODEL_RATES prices {'it' if one else 'them'} as Opus. "
+                    f"{'It is' if one else 'They are'} {len(est):,} requests "
+                    f"({human(est_tok)} tokens) and shows up as "
+                    f"{100 * est_w / total_w:.0f}% of weight, but that share is an "
+                    "artifact of the guess. Judge by requests and tokens until "
+                    "the rate is known."))
+
     fam = defaultdict(float)
     for r in requests:
         fam[family(r["model"])] += weight(r)
     if fam:
         f, w = max(fam.items(), key=lambda kv: kv[1])
-        if w / total_w > 0.5 and f in ("opus", "fable", "mythos"):
+        # Only claim a share for families we can actually price; for the others
+        # the finding above already says the number means nothing.
+        if w / total_w > 0.5 and f == "opus":
             out.append(("warn",
                         f"{f.title()} is {100 * w / total_w:.0f}% of consumption",
                         "Premium-tier models draw down the shared cap far faster "
@@ -457,7 +501,8 @@ def run_checks(requests, tools, stats, tz):
     models = Counter(r["model"] for r in requests)
     if len(models) > 1:
         out.append(("ok", f"{len(models)} distinct models used",
-                    ", ".join(f"{m} ({c})" for m, c in models.most_common(6))))
+                    ", ".join(f"{model_label(m)} ({c})"
+                              for m, c in models.most_common(6))))
 
     side = sum(weight(r) for r in requests if r["sidechain"])
     if side / total_w > 0.4:
@@ -589,14 +634,17 @@ def build_html(requests, tools, stats, tz, days, root, path):
     mrows = sorted(by_model.items(), key=lambda kv: -kv[1]["weight"])
     legend = "".join(
         f'<div><span class="sw" style="background:{colors[i % len(colors)]}">'
-        f'</span>{e(m)} — {100 * b["weight"] / total_w:.1f}% · {b["requests"]} '
-        f'reqs · {R.human(b["output_tokens"])} out</div>'
+        f'</span>{e(model_label(m))} — {100 * b["weight"] / total_w:.1f}% · '
+        f'{b["requests"]} reqs · {R.human(b["output_tokens"])} out</div>'
         for i, (m, b) in enumerate(mrows))
+    note = estimated_note(requests)
+    if note:
+        legend += f'<div class="n" style="margin-top:8px">{e(note)}</div>'
     parts.append("<h2>By model</h2>"
                  '<p class="sub">Share of weight, not share of requests. A premium '
                  "model can be a handful of calls and most of the drawdown.</p>"
                  f'<div class="split">' + R.donut(
-                     [(m, b["weight"], colors[i % len(colors)])
+                     [(model_label(m), b["weight"], colors[i % len(colors)])
                       for i, (m, b) in enumerate(mrows)], title="model share")
                  + f'<div class="legend">{legend}</div></div>')
 
@@ -694,8 +742,11 @@ def bug_report(requests, tools, stats, tz, days, path):
     ]
     for m, b in sorted(accumulate(requests, lambda r: r["model"]).items(),
                        key=lambda kv: -kv[1]["weight"]):
-        L.append(f"| `{m}` | {b['requests']:,} | "
-                 f"{100 * b['weight'] / total_w:.1f}% |")
+        L.append(f"| `{m}`{' *' if rate_is_estimated(m) else ''} | "
+                 f"{b['requests']:,} | {100 * b['weight'] / total_w:.1f}% |")
+    note = estimated_note(requests)
+    if note:
+        L += ["", f"_{note}_"]
 
     L += ["", "### Daily totals", "",
           "| day | requests | input | output | cache write | cache read |",
@@ -821,7 +872,7 @@ def main():
     keyers = {
         "day": lambda r: (r["ts"] + dt.timedelta(hours=a.tz)).strftime("%Y-%m-%d %a") if r["ts"] else "?",
         "hour": lambda r: (r["ts"] + dt.timedelta(hours=a.tz)).strftime("%m-%d %H:00") if r["ts"] else "?",
-        "model": lambda r: r["model"],
+        "model": lambda r: model_label(r["model"]),
         "session": lambda r: r["session"],
         "project": lambda r: r["project"],
         "version": lambda r: r["version"] or "unknown",
@@ -838,6 +889,11 @@ def main():
         else:
             print_table(f"By {v}", accumulate(requests, keyers[v]),
                         None if v in ("day", "model", "version") else a.top, v)
+            if v == "model":
+                note = estimated_note(requests)
+                if note:
+                    for chunk in _wrap(note, 70):
+                        print(f"  {chunk}")
 
     if a.csv:
         cols = ["ts", "model", "project", "session", "request_id", "sidechain",
