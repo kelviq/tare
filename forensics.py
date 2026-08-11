@@ -124,6 +124,17 @@ def report_days(rows):
 
 def report_discontinuity(days, med):
     keys = sorted(days)
+    if len(keys) < 5:
+        # With this few days the median is set by the very days under test, so
+        # both "spike" and "evenly distributed" would be unfounded. On a 2-day
+        # CSV with a 30x spread the old code reported even usage.
+        hi, lo = max(d["w"] for d in days.values()), min(d["w"] for d in days.values())
+        print(f"\nOnly {len(keys)} day(s) in this CSV — too few to establish a "
+              "baseline, so no")
+        print("spike detection was done. Day weights range "
+              f"{lo:.1f}-{hi:.1f}. Re-export with a")
+        print("wider --days window to see whether any day stands out.")
+        return
     spikes = [k for k in keys if days[k]["w"] > med * 2.5]
     if not spikes:
         print("\nNo day exceeds 2.5x the median. Usage looks evenly distributed;")
