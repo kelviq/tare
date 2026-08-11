@@ -23,6 +23,14 @@ findings at the top:
 ./ccaudit
 ```
 
+**At-a-glance panel** — one screen, like `/usage` but from the transcripts,
+with attribution by project and tool, the current 5-hour window load, and
+the top finding as a tip:
+
+```bash
+python3 skills/tare/ccaudit.py --days 1 --panel
+```
+
 **Monthly deep report:**
 
 ```bash

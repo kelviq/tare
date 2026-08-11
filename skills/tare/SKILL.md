@@ -41,6 +41,10 @@ Bare `/tare` (or a matching plain-English question) → the full diagnosis
 below. With an argument, jump straight to the matching light path after
 Step 1:
 
+- `usage` → the at-a-glance panel: run `ccaudit.py --days 1 --panel` and
+  show its output verbatim in a code block, followed by at most two
+  sentences of interpretation. Like the built-in `/usage`, but built from
+  the local transcripts, with attribution by project and tool.
 - `window` → how full is the 5-hour window right now; safe to start?
 - `report [days]` → build the HTML report (default 7 days) in the user's
   working directory. If the client can present files inline (a side-panel

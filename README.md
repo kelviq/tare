@@ -101,6 +101,7 @@ for the common asks — asking in plain words always works too:
 | | |
 |---|---|
 | `/tare` | full diagnosis — where tokens went and why |
+| `/tare usage` | at-a-glance panel — like `/usage`, with attribution |
 | `/tare window` | how full is the 5-hour window — safe to start? |
 | `/tare report [days]` | build the HTML report and open it |
 | `/tare tools [days]` | what is filling my context |

@@ -403,6 +403,82 @@ def print_tools(tools, top=20):
     print("              (this is what shows up as cache_read on your bill)")
 
 
+def print_panel(requests, tools, stats, tz, days):
+    """Compact at-a-glance summary, in the spirit of /usage but built from
+    the local transcripts. One screen, no scrolling."""
+    W = 74
+    now = dt.datetime.now(dt.timezone.utc)
+    tot = {k: sum(r[k] for r in requests) for k in USAGE_KEYS}
+    total_w = sum(weight(r) for r in requests) or 1.0
+
+    def bar(frac, width=12):
+        n = max(0, min(width, round(frac * width)))
+        return "█" * n + "·" * (width - n)
+
+    print("─" * W)
+    print(f"tare · last {days} day(s) · from local transcripts, this machine "
+          "only")
+    print(f"{len(requests):,} requests · "
+          f"{len({r['session'] for r in requests})} sessions · "
+          f"{human(sum(tot.values()))} tokens · "
+          f"{100 * tot['cache_read_input_tokens'] / (sum(tot.values()) or 1):.0f}% cache reads")
+    print("─" * W)
+
+    mrows = sorted(accumulate(requests, lambda r: r["model"]).items(),
+                   key=lambda kv: -kv[1]["weight"])[:3]
+    names = [re.sub(r"^claude-", "", model_label(m)) for m, _ in mrows]
+    cw = max([12] + [len(n) for n in names]) + 2
+    print(f"{'Breakdown':<12}" + "".join(f"{n:>{cw}}" for n in names)
+          + f"{'total':>{cw}}")
+    for label, key in (("Input", "input_tokens"), ("Output", "output_tokens"),
+                       ("Cache read", "cache_read_input_tokens"),
+                       ("Cache write", "cache_creation_input_tokens")):
+        print(f"{label:<12}"
+              + "".join(f"{human(b[key]):>{cw}}" for _, b in mrows)
+              + f"{human(tot[key]):>{cw}}")
+    print(f"{'Weight':<12}"
+          + "".join(f"{b['weight']:>{cw}.1f}" for _, b in mrows)
+          + f"{total_w:>{cw}.1f}")
+    if any(rate_is_estimated(m) for m, _ in mrows):
+        print("  * no published rate; placeholder weight — compare tokens, "
+              "not weight")
+
+    print("\nWhat's using your limits?" + " " * 21 + "share of weight")
+    by_proj = sorted(accumulate(requests, lambda r: r["project"]).items(),
+                     key=lambda kv: -kv[1]["weight"])[:4]
+    for name, b in by_proj:
+        frac = b["weight"] / total_w
+        print(f"  {name[-33:]:<35} {bar(frac)} {100 * frac:>4.0f}%")
+
+    agg = tool_summary(tools)
+    if agg:
+        tot_amp = sum(a["amplified"] for a in agg.values()) or 1
+        print("Context, by tool" + " " * 30 + "share of amplified")
+        for name, a in sorted(agg.items(),
+                              key=lambda kv: -kv[1]["amplified"])[:4]:
+            frac = a["amplified"] / tot_amp
+            print(f"  {name[:33]:<35} {bar(frac)} {100 * frac:>4.0f}%")
+
+    lo = now - dt.timedelta(hours=5)
+    inwin = [r for r in requests if r["ts"] and r["ts"] > lo]
+    peak, _, _ = rolling_max(requests, 5)
+    cur = sum(weight(r) for r in inwin)
+    line = f"\n5h window now: {cur:.1f}"
+    if peak:
+        line += f" ({100 * cur / peak:.0f}% of the peak seen in this range)"
+    oldest = min((r["ts"] for r in inwin), default=None)
+    if oldest:
+        line += (f" · oldest work ages out "
+                 f"{oldest + dt.timedelta(hours=5 + tz):%H:%M}")
+    print(line)
+
+    tip = next((h for s, h, _ in run_checks(requests, tools, stats, tz)
+                if s in ("flag", "warn")), None)
+    print("─" * W)
+    if tip:
+        print(f"Tip: {tip}. Run --doctor for the full findings.")
+
+
 # --- Checks ----------------------------------------------------------------
 
 def run_checks(requests, tools, stats, tz, redact=False):
@@ -820,6 +896,8 @@ def main():
     p.add_argument("--bug-report", metavar="PATH",
                    help="redacted markdown summary safe to share")
     p.add_argument("--doctor", action="store_true")
+    p.add_argument("--panel", action="store_true",
+                   help="compact one-screen summary, like /usage but local")
     p.add_argument("--tz", type=float, default=None,
                    help="local UTC offset in hours (default: from system)")
     p.add_argument("--dump-sample", action="store_true")
@@ -863,21 +941,24 @@ def main():
     total_w = sum(weight(r) for r in requests)
     span = [r["ts"] for r in requests if r["ts"]]
 
-    print("=" * 74)
-    print(f"Claude Code usage — last {a.days} days   ({root})")
-    print("=" * 74)
-    if span:
-        print(f"Range     : {min(span) + dt.timedelta(hours=a.tz):%Y-%m-%d %H:%M}"
-              f" → {max(span) + dt.timedelta(hours=a.tz):%Y-%m-%d %H:%M} local")
-    print(f"Requests  : {len(requests):,}  ({stats['dupes']:,} duplicate entries "
-          "collapsed)")
-    print(f"Sessions  : {len({r['session'] for r in requests})} across "
-          f"{len({r['project'] for r in requests})} projects, "
-          f"{len(tools):,} tool calls")
-    for k in USAGE_KEYS:
-        print(f"{SHORT[k]:<10}: {tot[k]:>15,}")
-    print(f"{'TOTAL':<10}: {sum(tot.values()):>15,} tokens")
-    print(f"{'weight':<10}: {total_w:>15.2f}  (proxy; see MODEL_RATES)")
+    if a.panel:
+        print_panel(requests, tools, stats, a.tz, a.days)
+    else:
+        print("=" * 74)
+        print(f"Claude Code usage — last {a.days} days   ({root})")
+        print("=" * 74)
+        if span:
+            print(f"Range     : {min(span) + dt.timedelta(hours=a.tz):%Y-%m-%d %H:%M}"
+                  f" → {max(span) + dt.timedelta(hours=a.tz):%Y-%m-%d %H:%M} local")
+        print(f"Requests  : {len(requests):,}  ({stats['dupes']:,} duplicate "
+              "entries collapsed)")
+        print(f"Sessions  : {len({r['session'] for r in requests})} across "
+              f"{len({r['project'] for r in requests})} projects, "
+              f"{len(tools):,} tool calls")
+        for k in USAGE_KEYS:
+            print(f"{SHORT[k]:<10}: {tot[k]:>15,}")
+        print(f"{'TOTAL':<10}: {sum(tot.values()):>15,} tokens")
+        print(f"{'weight':<10}: {total_w:>15.2f}  (proxy; see MODEL_RATES)")
 
     keyers = {
         "day": lambda r: (r["ts"] + dt.timedelta(hours=a.tz)).strftime("%Y-%m-%d %a") if r["ts"] else "?",
@@ -887,7 +968,8 @@ def main():
         "project": lambda r: r["project"],
         "version": lambda r: r["version"] or "unknown",
     }
-    for v in (a.by or ["day", "model", "tool", "session"]):
+    # --panel replaces the default tables; explicit --by still adds them
+    for v in (a.by or ([] if a.panel else ["day", "model", "tool", "session"])):
         if v == "tool":
             print_tools(tools, a.top)
         elif v == "detail":
