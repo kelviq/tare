@@ -1,211 +1,151 @@
-# ccaudit
+# tare
 
-**Find out where your Claude Code quota actually went.**
+**Ask Claude Code where your usage went.**
 
-Four small Python scripts, no dependencies, no network, nothing leaves your
-machine. Works on macOS and Linux with the Python that's already installed.
+You hit a usage limit and don't know why. Your quota drains faster than it
+used to. You suspect something is eating tokens in the background. The
+records that answer all of this are already on your computer — Claude Code
+keeps a log of every request it makes. `tare` teaches Claude Code to read
+its own logs, so you can just ask.
 
-```bash
-git clone <your-repo> && cd ccaudit
-./ccaudit            # analyses the last 7 days, opens an HTML report
-```
+No dashboards, no commands to learn. Install once, then ask in plain
+English.
 
-<!-- screenshot of report.html goes here -->
+*Tare: the weight of the container, subtracted to find what's inside. Most
+of what a session costs is the container — context re-sent again and again —
+and that's exactly what these tools subtract.*
 
----
+## Install
 
-## Why
-
-Claude Code meters a rolling 5-hour window and a separate weekly cap, and
-neither is exposed as a token counter. When usage drains faster than it used
-to, there's no built-in way to see *what* drained it. These tools reconstruct
-it from data already on your disk.
-
-They answer four questions:
-
-| Question | Tool |
-|---|---|
-| How many tokens, which model, when? | `ccaudit.py` |
-| Which *tool* put those tokens in my context? | `ccaudit.py --by tool` |
-| Does the server's counter match my actual spend? | `ccwatch.py` |
-| What is happening right now, request by request? | `otel_sink.py` |
-
----
-
-## `ccaudit.py` — retroactive analysis
-
-Claude Code writes a JSONL transcript per session under
-`~/.claude/projects/<slug>/<session-id>.jsonl`. Every assistant entry carries
-the API `usage` block: input, output, cache-read and cache-creation tokens,
-plus the model and request id. This reads them.
+One command, in any terminal:
 
 ```bash
-python3 ccaudit.py                        # last 7 days, text summary
-python3 ccaudit.py --days 30 --html report.html
-python3 ccaudit.py --doctor               # automated anomaly checks
-python3 ccaudit.py --by tool --top 25     # tool attribution
-python3 ccaudit.py --by detail            # per-file, per-command, per-host
-python3 ccaudit.py --bug-report bug.md    # redacted, safe to post publicly
-python3 ccaudit.py --csv usage.csv        # one row per API request
+git clone https://github.com/OWNER/tare ~/.claude/skills/tare
 ```
 
-### The two numbers that matter
+That's it. Nothing else to set up — no accounts, no packages, no
+configuration. Claude Code picks it up automatically. (Other ways to
+install, including for a whole team, are in [INSTALL.md](INSTALL.md).)
 
-**Injected** — tokens a tool's output added to your context.
-**Amplified** — injected × how many later API calls re-sent it.
+## Then just ask
 
-That second number is the one people miss. A 20K-token file read on call 3 of
-a 200-call session isn't 20K tokens; it's 20K re-sent 197 times, ≈4M tokens of
-cache reads. One `Read` of a minified bundle can dominate an entire week.
-Sample output:
+Open Claude Code and ask your question the way you'd ask a person. These all
+work — the words don't have to match, complaining about your limits is
+enough:
 
-```
-tool                                 calls   injected   amplified   share   err
--------------------------------------------------------------------------------
-Read                                    73      1.59M      55.76M   41.5%     5
-MCP postgres/query                      40    880.00K      23.28M   17.3%     4
-Agent:explore                           36    540.00K      16.66M   12.4%     2
-Bash                                    38    456.00K      15.22M   11.3%     2
-WebFetch                                38    228.00K       7.49M    5.6%     4
-Skill:pptx                              31     77.50K       2.95M    2.2%     2
-```
+**When you hit a limit**
 
-Web browsing, MCP servers, skills and subagents are all broken out separately,
-and `--by detail` names the specific file, command or host responsible.
+> *Why did I hit my usage limit yesterday?*
 
-### A correctness note
+> *I got locked out ten minutes into my evening session — how is that
+> possible?*
 
-One API response is persisted as **one transcript entry per content block**,
-and every one of those entries repeats the same `usage` object. Summing lines
-naively inflates totals — typically by 30–50%. `ccaudit` deduplicates by
-request id and tells you how many it collapsed. If another tool has given you
-a number that looks impossible, this is usually why.
+> *Did I hit the 5-hour limit or the weekly cap?*
 
-### The HTML report
+> *Why am I burning through my quota so much faster this week?*
 
-`--html report.html` produces one self-contained file: no CDN, no JavaScript,
-no build step. Daily stacked bars, an hour-by-hour heatmap (the fastest way to
-spot usage while you were asleep), the rolling 5-hour load curve, model share,
-tool attribution, and the automated findings at the top.
+**Where your tokens go**
 
----
+> *Where did my tokens actually go this week?*
 
-## `ccwatch.py` — server counters vs. your actual spend
+> *Which of my projects is eating my quota?*
 
-**This is the one that can settle whether something is broken.**
+> *Which model is costing me the most?*
 
-Claude subscriptions expose a usage endpoint reporting a rolling five-hour
-utilization and a seven-day utilization. `ccwatch` polls it, records each
-reading, and lines those readings up against what your own transcripts say you
-spent in the same interval.
+> *What's the most expensive file Claude keeps re-reading?*
 
-```bash
-python3 ccwatch.py --poll        # leave running
-python3 ccwatch.py --analyze     # after a few hours
-```
+> *How much did that giant session yesterday actually cost me?*
 
-```
-interval (local)           Δ5h     Δ7d   reqs     tokens   weight  note
------------------------------------------------------------------------
-08-10 21:09 →21:39       +2.00   +1.20      0          0     0.00  PHANTOM: counter rose with zero local requests
-08-10 21:39 →22:09       +1.85   +0.90    142      3.10M     4.21
-```
+> *Are my MCP servers adding a lot to my context?*
 
-If the counter climbs while your transcripts show no requests, that's phantom
-usage and you have a timestamped series to prove it. If it climbs in step with
-your spend, metering is fine and the cause is elsewhere — model choice, context
-size, or tool output. `--analyze` also reports your burn rate as "100% in N
-hours of this workload", which is the number worth comparing against others.
+> *How much overhead do subagents and skills add?*
 
-**Caveats, please read.** The endpoint is undocumented; it can change or vanish,
-and a failure here means the tool broke, not that anything is wrong with your
-account. Independent monitoring has reported the seven-day counter resetting on
-a ~72-hour cadence rather than weekly — record what you see rather than assuming.
-`ccwatch` reads your existing OAuth token from local storage (env var,
-`~/.claude/.credentials.json`, or the macOS Keychain) to call *your own*
-account's endpoint. The token is sent only to claude.ai over HTTPS, is never
-logged and never printed. Read the code. If you'd rather not, export it
-yourself and use `--token-env`.
+**Before you start something big**
 
----
+> *How full is my 5-hour window right now?*
 
-## `otel_sink.py` — live, per-request capture
+> *Is it safe to start a big refactor now, or should I wait for my window to
+> clear?*
 
-Claude Code has a built-in OpenTelemetry exporter that emits an event for every
-API request. It normally wants a collector stack; this script *is* the
-collector, in ~200 lines of stdlib.
+**Checking for things you forgot**
 
-Terminal 1:
-```bash
-python3 otel_sink.py --out ~/claude-telemetry.jsonl
-```
+> *Is something running Claude Code in the background?*
 
-Terminal 2, then start Claude Code from that shell:
-```bash
-export CLAUDE_CODE_ENABLE_TELEMETRY=1
-export OTEL_LOGS_EXPORTER=otlp
-export OTEL_METRICS_EXPORTER=otlp
-export OTEL_EXPORTER_OTLP_PROTOCOL=http/json
-export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
-export OTEL_LOGS_EXPORT_INTERVAL=2000
-claude
-```
+> *Was Claude Code active while I was asleep?*
 
-```
-14:22:07  claude-opus-5      in=     12 out=  1240 cw=   8100 cr=  184320 $0.4821  repl_main_thread
-14:22:31  claude-haiku-4-5   in=      8 out=   210 cw=      0 cr=    3100 $0.0009  subagent  agent=explore
-14:23:02  COMPACT (auto) 168000 -> 41000 tokens
-14:24:11  ERROR 429 attempt=3 rate_limit_error
-```
+> *I set up an automation last month — what is it costing me?*
 
-Three things this has that the transcripts don't:
+**Tuning your setup**
 
-- `query_source` — `repl_main_thread`, `subagent`, `compact`, auxiliary.
-  Auto-compaction is itself a full-context request; ten per session is a real
-  line item.
-- Retry counts. `CLAUDE_CODE_MAX_RETRIES` defaults to 10, so one transient
-  failure can mean 11 attempts.
-- Per-request `cost_usd` and `duration_ms`.
+> *I started using /clear between tasks — did it actually help? Compare this
+> week to last.*
 
-Add `OTEL_LOG_RAW_API_BODIES=file:$HOME/claude-bodies` to capture complete
-request/response JSON per request — the full "intercept everything" view. Those
-files contain your entire conversation history and any file contents Claude
-read, so only on a machine you control.
+> *Did the latest Claude Code update change my usage?*
 
----
+> *What would my usage cost if I were paying for the API directly?*
 
-## Before concluding it's a bug
+> *What one change would save me the most?*
 
-- Run `/usage` in Claude Code. There is no *daily* limit — it's a rolling
-  5-hour window and a separate weekly cap, and they're different problems.
-- The quota is shared across Claude Code, the Claude apps and Cowork. Chat
-  usage drains the same bucket.
-- "Server is temporarily limiting requests" is capacity on Anthropic's side,
-  not your usage limit, and costs you nothing.
-- Premium-tier models draw down the shared cap far faster per token. Check the
-  model breakdown before assuming the meter is wrong.
-- `/context` shows what's in your window right now.
+**Reports and sharing**
 
-If `--doctor` flags repeated usage blocks, off-hours traffic, or a session with
-400+ calls — or if `ccwatch --analyze` finds phantom intervals — that's worth
-reporting. `--bug-report` writes a markdown summary with no prompts, file
-paths, file contents, command arguments or account identifiers in it. File at
-[anthropics/claude-code](https://github.com/anthropics/claude-code/issues).
+> *Make me a usage report I can open in my browser.*
 
-## Caveats
+> *Give me a summary I can post publicly — with nothing private in it.*
 
-The transcript format is internal to Claude Code and changes between releases,
-so the parser is defensive and reports what it couldn't read. If `--doctor`
-says a large share of lines were unparsed, run `--dump-sample` and check the
-field names. The `MODEL_RATES` table at the top of `ccaudit.py` is a relative
-weight proxy, not a bill; subscription limits meter compute, not those dollar
-figures. Edit it freely.
+> *Export my usage to a spreadsheet.*
 
-## Contributing
+## What you get back
 
-Issues and PRs welcome. Useful directions: a `--watch` live TUI, Windows paths,
-aggregating anonymised `--bug-report` output across users to spot patterns no
-single person can see, and better token estimation than `len/4` for tool
-results.
+Not a wall of numbers — a cause. The answer to "why did I hit my limit
+yesterday?" looks like this:
+
+> **99% of yesterday's usage came from a tool you're running, not from you.**
+> Something spawned 1,553 short Claude Code sessions in your website project
+> — 9,022 requests, up to 51 sessions running at once. Your own hands-on
+> work that day was 93 requests. Each fresh session rebuilds its context
+> from scratch, which is the most expensive way to spend tokens...
+
+...followed by the evidence, what to check, and what to change. And when
+everything is actually fine, it says that: usage proportionate, no anomaly,
+here's what's normal for you.
+
+## What it knows that a raw token count doesn't
+
+- **Correct totals.** Claude Code's log format repeats each API response
+  several times over; naive counting inflates totals — by 86% on the data
+  this was built against. tare deduplicates properly.
+- **The real cost of context.** A file read early in a long session gets
+  re-sent with every later message. tare charges tools for what they
+  *caused*, not just what they returned — which is how one big file read
+  early can quietly dominate a week.
+- **The rolling window.** Limits don't reset when you walk away; work from
+  four hours ago still counts. tare can tell you how full your window was at
+  the exact moment you were locked out.
+- **The shape of automation.** Hundreds of short parallel sessions is a
+  script, not a person. tare recognises the signature and says so.
+
+## Private by design
+
+Everything runs on your machine and nothing leaves it. The scripts make no
+network connections at all. When you ask for a shareable summary, it
+contains totals, dates and tool names only — no prompts, no file paths or
+contents, no commands, no session or account identifiers — so you can post
+it publicly or send it to a colleague and ask "what am I missing?"
+
+## Requirements
+
+- Claude Code on macOS or Linux
+- Python 3.9+ — already present on every Mac; no packages to install
+- Currently reads Claude Code's logs only, not other coding agents'
+
+## For developers
+
+Everything the skill does, you can also do by hand: three dependency-free
+Python scripts with recipes for scripting, cron, CSV export, live
+per-request telemetry and more — see [CLI.md](CLI.md).
+
+Issues and PRs welcome. Useful directions: a live TUI, Windows paths,
+aggregating anonymised summaries across users to spot patterns no single
+person can see, and better token estimation for tool results.
 
 MIT licensed.

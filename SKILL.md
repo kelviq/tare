@@ -1,6 +1,6 @@
 ---
 name: tare
-description: Diagnose Claude Code usage limits — find out where tokens actually went and why a 5-hour or weekly limit was hit. Use this whenever the user mentions hitting a usage limit, being rate limited, burning through their quota, running out of Claude Code usage, unexpected or suspicious token consumption, "why am I hitting limits", phantom usage, or asks to audit, analyze, or track their Claude Code token usage. Also use when the user suspects a billing or metering bug, wonders which tool or model is eating their quota, or wants a usage report. Trigger even if they don't use the word "tare" or "audit" — a complaint about limits is enough.
+description: Diagnose Claude Code usage limits — find out where tokens actually went and why a 5-hour or weekly limit was hit. Use this whenever the user mentions hitting a usage limit, being rate limited, burning through their quota, running out of Claude Code usage, unexpected or suspicious token consumption, "why am I hitting limits", phantom usage, or asks to audit, analyze, or track their Claude Code token usage. Also use when the user asks how full their 5-hour window is, whether it is safe to start a big task now, which tool, model, project, file, MCP server, skill or subagent is eating their quota, what their usage would cost on the API, whether a habit or update changed their consumption, whether something is using Claude Code in the background or while they were away, or wants a usage report, a week-over-week comparison, a spreadsheet export, or a shareable redacted summary. Trigger even if they don't use the word "tare" or "audit" — a complaint about limits is enough.
 ---
 
 # tare
@@ -60,6 +60,28 @@ each repeating the same usage object. If "duplicate entries collapsed" is zero,
 the dedupe key isn't matching and totals may be badly inflated — 86% on the
 data this tool was developed against. Say so rather than reporting the numbers
 as fact.
+
+## Light questions — answer directly, skip the full diagnosis
+
+Not every question is a limit investigation. After Step 1, these map straight
+to one command (all paths relative to `$TARE`, CSV via
+`ccaudit.py --days N --csv`):
+
+- **"How full is my window / safe to start something big?"** —
+  `forensics.py <csv> --at <now, YYYY-MM-DDTHH:MM local>`. Report the load,
+  the share of their observed peak, and when the oldest work ages out.
+- **"Compare this week to last / did my habit change help?"** —
+  `ccaudit.py --days 14 --by day`; compare weight and cache-read share
+  between the two weeks.
+- **"What would this cost on the API?"** — the `weight` total is a
+  USD-equivalent proxy from `MODEL_RATES`; give the number with that caveat,
+  and exclude models marked `*`.
+- **"Make me a report / export a spreadsheet / shareable summary"** —
+  `--html`, `--csv`, `--bug-report` respectively; write to the user's
+  working directory unless they say where.
+
+Answer the question asked, offer the deeper diagnosis only if the numbers
+look off.
 
 ## Step 2 — establish what kind of problem this is
 
