@@ -20,12 +20,13 @@ and that's exactly what these tools subtract.*
 One command, in any terminal:
 
 ```bash
-git clone https://github.com/OWNER/tare ~/.claude/skills/tare
+npx skills add OWNER/tare
 ```
 
 That's it. Nothing else to set up — no accounts, no packages, no
 configuration. Claude Code picks it up automatically. (Other ways to
-install, including for a whole team, are in [INSTALL.md](INSTALL.md).)
+install — by hand, for a whole team, or as a Claude Code plugin — are in
+[INSTALL.md](INSTALL.md).)
 
 ## Then just ask
 
@@ -94,6 +95,19 @@ enough:
 
 > *Export my usage to a spreadsheet.*
 
+Prefer typing commands? `/tare` runs the full diagnosis, and takes variants
+for the common asks — asking in plain words always works too:
+
+| | |
+|---|---|
+| `/tare` | full diagnosis — where tokens went and why |
+| `/tare window` | how full is the 5-hour window — safe to start? |
+| `/tare report [days]` | build the HTML report and open it |
+| `/tare tools [days]` | what is filling my context |
+| `/tare week` | compare this week with last |
+| `/tare share [days]` | redacted summary safe to post publicly |
+| `/tare why did I hit the limit yesterday` | any question works as the argument |
+
 ## What you get back
 
 Not a wall of numbers — a cause. The answer to "why did I hit my limit
@@ -108,6 +122,9 @@ yesterday?" looks like this:
 ...followed by the evidence, what to check, and what to change. And when
 everything is actually fine, it says that: usage proportionate, no anomaly,
 here's what's normal for you.
+
+Real output lives in [examples/](examples/) — a shareable summary produced
+by `/tare share`, and the HTML report.
 
 ## What it knows that a raw token count doesn't
 

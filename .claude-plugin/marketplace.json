@@ -1,0 +1,14 @@
+{
+  "name": "tare",
+  "owner": {
+    "name": "Sachin Neravath"
+  },
+  "description": "tare: ask Claude Code where your usage went.",
+  "plugins": [
+    {
+      "name": "tare",
+      "source": ".",
+      "description": "Ask Claude Code where your usage went: diagnose 5-hour and weekly limits, find which tool, model or project eats your quota, and detect background automation — all from the session logs already on disk."
+    }
+  ]
+}

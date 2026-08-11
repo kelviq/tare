@@ -9,7 +9,7 @@ No dependencies, no network, Python 3.9+. `forensics.py` reads the CSV that
 `ccaudit.py --csv` writes, so most multi-step recipes start with:
 
 ```bash
-python3 ccaudit.py --days 30 --csv usage.csv
+python3 skills/tare/ccaudit.py --days 30 --csv usage.csv
 ```
 
 ## Recipes
@@ -26,7 +26,7 @@ findings at the top:
 **Monthly deep report:**
 
 ```bash
-python3 ccaudit.py --days 30 --doctor --html report.html
+python3 skills/tare/ccaudit.py --days 30 --doctor --html report.html
 ```
 
 **"Is it safe to start a heavy session right now?"** The 5-hour window is
@@ -34,7 +34,7 @@ rolling — work from four hours ago still counts. Check the load before
 starting something big:
 
 ```bash
-python3 forensics.py usage.csv --at 2026-08-11T17:30
+python3 skills/tare/forensics.py usage.csv --at 2026-08-11T17:30
 ```
 
 ```
@@ -47,7 +47,7 @@ heavy refactor now is how you hit a limit ten minutes in.
 **A daily text summary on a schedule** (no HTML, cron-friendly):
 
 ```bash
-python3 ccaudit.py --days 1 > ~/claude-usage-today.txt
+python3 skills/tare/ccaudit.py --days 1 > ~/claude-usage-today.txt
 ```
 
 ### When you hit a limit
@@ -55,7 +55,7 @@ python3 ccaudit.py --days 1 > ~/claude-usage-today.txt
 **5-hour limit autopsy.** Give `--at` the time you got locked out:
 
 ```bash
-python3 forensics.py usage.csv --at 2026-08-10T19:46
+python3 skills/tare/forensics.py usage.csv --at 2026-08-10T19:46
 ```
 
 It reports how full the window already was at that moment and when the oldest
@@ -66,7 +66,7 @@ behaviour, not a fault.
 **Weekly cap autopsy.** Same tool, wider window:
 
 ```bash
-python3 forensics.py usage.csv --window 168
+python3 skills/tare/forensics.py usage.csv --window 168
 ```
 
 The peak of the 168-hour curve and when it happened tells you which stretch
@@ -75,14 +75,14 @@ of days actually filled the weekly cap.
 **Autopsy one specific day:**
 
 ```bash
-python3 forensics.py usage.csv --day 2026-08-10
+python3 skills/tare/forensics.py usage.csv --day 2026-08-10
 ```
 
 **Find a runaway session.** An agent loop that didn't terminate shows up as
 one session with hundreds of calls:
 
 ```bash
-python3 ccaudit.py --days 7 --by session --top 10
+python3 skills/tare/ccaudit.py --days 7 --by session --top 10
 ```
 
 `--doctor` flags any session over 400 calls automatically. The session id is
@@ -111,13 +111,13 @@ blocks of usage while you were asleep need explaining.
 **Find the tool that fills your context:**
 
 ```bash
-python3 ccaudit.py --days 7 --by tool --top 20
+python3 skills/tare/ccaudit.py --days 7 --by tool --top 20
 ```
 
 **Then find the specific file, command or host:**
 
 ```bash
-python3 ccaudit.py --days 7 --by detail --top 20
+python3 skills/tare/ccaudit.py --days 7 --by detail --top 20
 ```
 
 A minified bundle you `Read` once, early, in a long session can dominate a
@@ -143,7 +143,7 @@ context, so a task that spawns five costs far more than it appears to.
 **Check your model mix:**
 
 ```bash
-python3 ccaudit.py --days 30 --by model
+python3 skills/tare/ccaudit.py --days 30 --by model
 ```
 
 Premium-tier models draw down the shared cap several times faster per token.
@@ -154,7 +154,7 @@ compare those by requests and tokens, not by weight share.
 tasks — and compare the daily weight table for the week before and after:
 
 ```bash
-python3 ccaudit.py --days 14 --by day
+python3 skills/tare/ccaudit.py --days 14 --by day
 ```
 
 Cache reads as a share of your total is the number that should move.
@@ -162,7 +162,7 @@ Cache reads as a share of your total is the number that should move.
 **Did a Claude Code release change your burn?**
 
 ```bash
-python3 ccaudit.py --days 30 --by version
+python3 skills/tare/ccaudit.py --days 30 --by version
 ```
 
 Weight per request by version, on your own workload — evidence, either way,
@@ -170,7 +170,7 @@ when a release feels hungrier.
 
 **Estimate what your usage would cost on the API.** The `weight` column is a
 USD-equivalent proxy computed from the editable `MODEL_RATES` table at the
-top of `ccaudit.py`. It is not a bill — subscription limits meter compute,
+top of `skills/tare/ccaudit.py`. It is not a bill — subscription limits meter compute,
 not dollars — but it's the right order of magnitude for "should I be on the
 API instead?"
 
@@ -178,8 +178,8 @@ API instead?"
 test harness, or anything that spawns sessions in bulk? Run it once, then:
 
 ```bash
-python3 ccaudit.py --days 1 --by project
-python3 forensics.py usage.csv --day 2026-08-11
+python3 skills/tare/ccaudit.py --days 1 --by project
+python3 skills/tare/forensics.py usage.csv --day 2026-08-11
 ```
 
 Every fresh session pays full cache-creation on its first turn, at 1.25× the
@@ -193,7 +193,7 @@ on a schedule.
 prompts and your files; this contains neither:
 
 ```bash
-python3 ccaudit.py --days 30 --bug-report share.md
+python3 skills/tare/ccaudit.py --days 30 --bug-report share.md
 ```
 
 A 5KB markdown summary — totals, daily table, model split, tool names,
@@ -214,7 +214,7 @@ straight off it.
 **Export everything to a spreadsheet or pandas.** One row per API request:
 
 ```bash
-python3 ccaudit.py --days 30 --csv usage.csv
+python3 skills/tare/ccaudit.py --days 30 --csv usage.csv
 ```
 
 Columns: timestamp, model, project, session, request id, sidechain flag,
@@ -223,7 +223,7 @@ Claude Code version, stop reason, all four token counts, weight.
 **Another machine or a custom config dir:**
 
 ```bash
-python3 ccaudit.py --dir /path/to/.claude/projects
+python3 skills/tare/ccaudit.py --dir /path/to/.claude/projects
 ```
 
 Copy a `projects` directory from a VM or second machine and analyse it
@@ -232,13 +232,13 @@ anywhere — the tools never modify it.
 **Fix the timezone** when analysing data from a machine set to UTC:
 
 ```bash
-python3 ccaudit.py --days 7 --tz 5.5
+python3 skills/tare/ccaudit.py --days 7 --tz 5.5
 ```
 
 **Study the transcript format** if you're building your own tooling:
 
 ```bash
-python3 ccaudit.py --dump-sample
+python3 skills/tare/ccaudit.py --dump-sample
 ```
 
 Prints one complete usage-bearing entry. And read the correctness note below
@@ -336,7 +336,7 @@ transient failure can mean 11 attempts), and per-request `cost_usd` and
 The transcript format is internal to Claude Code and changes between
 releases, so the parser is defensive and reports what it couldn't read. If
 `--doctor` says a large share of lines were unparsed, run `--dump-sample` and
-check the field names. The `MODEL_RATES` table at the top of `ccaudit.py` is
+check the field names. The `MODEL_RATES` table at the top of `skills/tare/ccaudit.py` is
 a relative weight proxy, not a bill; subscription limits meter compute, not
 those dollar figures. Edit it freely. Token sizing of tool results is
 `len/4` — comparative, not exact.

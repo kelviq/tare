@@ -1,7 +1,9 @@
 # Generated reports and exports — these contain real usage data
+# (root-level only: examples/ holds the published, redacted versions)
 *.csv
-report.html
-bug.md
+/report.html
+/bug.md
+/share.md
 *.jsonl
 
 # Local notes

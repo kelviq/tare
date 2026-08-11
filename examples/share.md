@@ -1,0 +1,92 @@
+## Claude Code usage audit
+_ccaudit 0.2.0 · 30-day window · local offset UTC+5.5_
+
+| metric | value |
+|---|---|
+| API requests | 75,197 |
+| Duplicate transcript entries collapsed | 64,732 |
+| Sessions | 13,032 |
+| Tool calls | 72,832 |
+| Input tokens | 1,091,934 |
+| Output tokens | 29,186,649 |
+| Cache creation tokens | 321,632,314 |
+| Cache read tokens | 2,400,552,859 |
+| Heaviest 5h window | 6.8% of period |
+| Claude Code versions | 2.1.204, 2.1.205, 2.1.206, 2.1.207, 2.1.209, 2.1.210, 2.1.211, 2.1.215, 2.1.217, 2.1.218, 2.1.219, 2.1.220, 2.1.221, 2.1.222, 2.1.226, 2.1.227 |
+
+### Models
+
+| model | requests | share of weight |
+|---|---|---|
+| `claude-sonnet-4-6` | 68,085 | 45.1% |
+| `claude-fable-5` * | 2,326 | 32.5% |
+| `claude-opus-4-8` | 1,200 | 15.1% |
+| `claude-sonnet-5` | 3,141 | 4.1% |
+| `claude-opus-5` | 442 | 3.2% |
+| `claude-haiku-4-5-20251001` | 3 | 0.0% |
+
+_* claude-fable-5 — no published rate; weight uses an Opus-equivalent placeholder. Compare their requests and tokens, not their share of weight._
+
+### Daily totals
+
+| day | requests | input | output | cache write | cache read |
+|---|---|---|---|---|---|
+| 2026-07-13 | 912 | 49,766 | 404,880 | 3,827,380 | 31,024,383 |
+| 2026-07-14 | 563 | 2,589 | 295,155 | 3,296,282 | 21,533,447 |
+| 2026-07-15 | 974 | 32,600 | 771,296 | 4,277,218 | 65,608,684 |
+| 2026-07-16 | 1,616 | 34,902 | 1,069,761 | 11,679,000 | 164,939,212 |
+| 2026-07-17 | 709 | 7,774 | 362,458 | 4,271,291 | 34,132,912 |
+| 2026-07-18 | 583 | 2,428 | 200,677 | 4,090,530 | 18,130,666 |
+| 2026-07-19 | 49 | 91 | 62,620 | 555,263 | 12,508,572 |
+| 2026-07-20 | 2,428 | 39,632 | 1,045,438 | 12,093,552 | 128,742,024 |
+| 2026-07-21 | 2,515 | 79,131 | 1,376,228 | 13,056,478 | 186,609,323 |
+| 2026-07-22 | 2,545 | 115,407 | 1,262,496 | 12,126,416 | 200,940,487 |
+| 2026-07-23 | 1,165 | 11,038 | 423,997 | 4,602,023 | 20,609,536 |
+| 2026-07-24 | 2,758 | 31,650 | 1,210,872 | 12,259,683 | 159,608,795 |
+| 2026-07-25 | 517 | 3,140 | 189,818 | 2,364,926 | 10,952,384 |
+| 2026-07-26 | 476 | 3,210 | 155,402 | 1,746,876 | 7,078,739 |
+| 2026-07-27 | 1,011 | 7,284 | 357,286 | 4,714,154 | 15,045,760 |
+| 2026-07-28 | 2,054 | 20,560 | 824,087 | 8,439,549 | 92,554,478 |
+| 2026-07-29 | 1,190 | 5,786 | 420,384 | 5,692,699 | 24,041,037 |
+| 2026-07-30 | 1,012 | 16,596 | 370,072 | 4,372,428 | 16,298,586 |
+| 2026-07-31 | 556 | 6,357 | 210,816 | 2,193,014 | 11,008,469 |
+| 2026-08-01 | 1,582 | 19,247 | 556,852 | 6,851,340 | 27,980,634 |
+| 2026-08-02 | 523 | 2,606 | 182,296 | 2,286,281 | 9,382,691 |
+| 2026-08-03 | 1,271 | 9,274 | 633,330 | 6,145,573 | 72,847,590 |
+| 2026-08-04 | 7,261 | 60,098 | 2,710,983 | 32,150,020 | 157,066,107 |
+| 2026-08-05 | 13,353 | 161,396 | 4,518,301 | 53,042,199 | 237,502,225 |
+| 2026-08-06 | 16,271 | 227,987 | 5,696,877 | 63,087,069 | 354,093,236 |
+| 2026-08-07 | 1,703 | 43,687 | 600,880 | 7,133,069 | 50,127,676 |
+| 2026-08-08 | 71 | 134 | 57,516 | 210,690 | 14,868,953 |
+| 2026-08-10 | 9,115 | 93,736 | 2,940,193 | 33,379,035 | 198,010,909 |
+| 2026-08-11 | 414 | 3,828 | 275,678 | 1,688,276 | 57,305,344 |
+
+### Tool attribution (names only, no arguments)
+
+| tool | calls | injected | amplified | share |
+|---|---|---|---|---|
+| `Read` | 21,645 | 105,834,415 | 577,815,205 | 74.1% |
+| `Bash` | 47,520 | 14,138,588 | 130,934,285 | 16.8% |
+| `MCP Claude_Browser/computer` | 17 | 278,643 | 23,559,285 | 3.0% |
+| `Agent:general-purpose` | 92 | 91,112 | 16,135,133 | 2.1% |
+| `Edit` | 1,845 | 88,153 | 9,085,570 | 1.2% |
+| `Agent:Explore` | 25 | 33,932 | 5,451,642 | 0.7% |
+| `ExitPlanMode` | 29 | 31,588 | 4,277,132 | 0.5% |
+| `WebFetch` | 49 | 28,444 | 2,990,281 | 0.4% |
+| `Write` | 613 | 28,141 | 2,721,356 | 0.3% |
+| `Agent:claude-code-guide` | 2 | 2,681 | 1,278,928 | 0.2% |
+| `Agent:Plan` | 2 | 9,518 | 829,722 | 0.1% |
+| `AskUserQuestion` | 49 | 4,841 | 799,006 | 0.1% |
+| `WebSearch` | 12 | 8,197 | 780,632 | 0.1% |
+| `Glob` | 235 | 95,782 | 735,132 | 0.1% |
+| `SendMessage` | 29 | 3,595 | 462,418 | 0.1% |
+
+### Automated findings
+
+- **Cache reads are 87% of all tokens** — Long-lived sessions: every turn re-sends the whole context. /clear between unrelated tasks is the biggest single lever.
+- **Some weight rests on a placeholder rate** — claude-fable-5 has no published price, so MODEL_RATES prices it as Opus. It is 2,326 requests (493.90M tokens) and shows up as 33% of weight, but that share is an artifact of the guess. Judge by requests and tokens until the rate is known.
+- **11% of requests fall in 23:00-06:00** — Traffic while you were probably not at the keyboard. Look for a background agent, a file watcher, a CI job, or an editor extension holding a session open. Check the heatmap.
+- **One session made 2705 API calls** — That volume usually means an agent loop that didn't terminate. Run --by session to find it, then read that transcript.
+- **Read is 74% of injected context** — 21645 calls, 105.83M tokens injected, 577.82M after re-sending. One noisy tool can dominate an entire week.
+
+_Generated by ccaudit. Contains no prompts, file paths, file contents, command arguments or account identifiers._

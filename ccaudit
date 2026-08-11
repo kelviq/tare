@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Convenience wrapper: ./ccaudit  ==  python3 ccaudit.py --days 7 --html report.html
+# Convenience wrapper: ./ccaudit  ==  python3 skills/tare/ccaudit.py --days 7 --html report.html
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 py="$(command -v python3 || true)"
 [ -z "$py" ] && { echo "python3 not found. On macOS: xcode-select --install"; exit 1; }
 if [ $# -eq 0 ]; then
-  "$py" "$here/ccaudit.py" --days 7 --doctor --html "$here/report.html"
+  "$py" "$here/skills/tare/ccaudit.py" --days 7 --doctor --html "$here/report.html"
   command -v open >/dev/null && open "$here/report.html"
 else
-  "$py" "$here/ccaudit.py" "$@"
+  "$py" "$here/skills/tare/ccaudit.py" "$@"
 fi

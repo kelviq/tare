@@ -1,0 +1,6 @@
+{
+  "name": "tare",
+  "description": "Ask Claude Code where your usage went: diagnose 5-hour and weekly limits, find which tool, model or project eats your quota, and detect background automation — all from the session logs already on disk.",
+  "version": "0.2.0",
+  "author": { "name": "Sachin Neravath" }
+}
