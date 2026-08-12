@@ -1,3 +1,5 @@
+
+
 # tare
 
 **Ask Claude Code where your usage went.**
@@ -162,6 +164,12 @@ yourself with one grep.
 - Claude Code on macOS or Linux
 - Python 3.9+ — already present on every Mac; no packages to install
 - Currently reads Claude Code's logs only, not other coding agents'
+
+## Demo
+
+https://github.com/user-attachments/assets/358ecacb-972b-4452-9633-e530af3d5490
+
+
 
 ## For developers
 
