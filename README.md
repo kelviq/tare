@@ -22,13 +22,16 @@ and that's exactly what these tools subtract.*
 One command, in any terminal:
 
 ```bash
-npx skills add kelviq/tare
+npx skills add kelviq/tare -g -y --copy --agent claude-code
 ```
 
 That's it. Nothing else to set up — no accounts, no packages, no
-configuration. Claude Code picks it up automatically. (Other ways to
-install — by hand, for a whole team, or as a Claude Code plugin — are in
-[INSTALL.md](INSTALL.md).)
+configuration. Start a **new** Claude Code session and it's live — type
+`/` and check that `tare` appears. If it doesn't, see the
+[troubleshooting note](INSTALL.md#troubleshooting) — on machines where
+Claude Code has never installed a skill before, the installer can miss
+it. (Other ways to install — by hand, for a whole team, or as a Claude
+Code plugin — are in [INSTALL.md](INSTALL.md).)
 
 ## Then just ask
 

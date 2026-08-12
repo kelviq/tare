@@ -7,12 +7,39 @@ product — every install method below just gets it in front of Claude Code.
 ## With the skills CLI (simplest)
 
 ```bash
-npx skills add kelviq/tare
+npx skills add kelviq/tare -g -y --copy --agent claude-code
 ```
 
-Installs the skill for Claude Code (and other agents the CLI supports).
+The flags matter: `--agent claude-code` targets Claude Code explicitly,
+`-g` installs user-level so it works in every project, `--copy` puts real
+files in `~/.claude/skills/tare` rather than a symlink, and `-y` skips
+prompts. Then start a **new** Claude Code session — skills are read at
+session start.
+
 Note: tare only reads Claude Code's own logs under `~/.claude/projects` —
 installed into any other agent it will find nothing.
+
+### Troubleshooting
+
+**Installed, but Claude doesn't know the skill?** Check whether the files
+actually reached Claude Code:
+
+```bash
+ls ~/.claude/skills/tare
+```
+
+If that's empty but `~/.agents/skills/tare` exists, the installer put the
+files in its shared location without linking them to Claude Code — this
+happens on machines where `~/.claude/skills` doesn't exist yet, so Claude
+Code isn't detected as an installed agent. Fix it by re-running the
+install command above (the explicit `--agent claude-code` flag targets it
+regardless of detection), or copy the files yourself:
+
+```bash
+mkdir -p ~/.claude/skills && cp -r ~/.agents/skills/tare ~/.claude/skills/tare
+```
+
+Either way, the skill loads in the **next** session, not the current one.
 
 ## Personal skill, by hand
 
