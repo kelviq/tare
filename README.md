@@ -150,6 +150,10 @@ contains totals, dates and tool names only — no prompts, no file paths or
 contents, no commands, no session or account identifiers — so you can post
 it publicly or send it to a colleague and ask "what am I missing?"
 
+Don't take that on faith: [SECURITY.md](SECURITY.md) states exactly what
+each file reads, writes and sends, and shows how to verify every claim
+yourself with one grep.
+
 ## Requirements
 
 - Claude Code on macOS or Linux
