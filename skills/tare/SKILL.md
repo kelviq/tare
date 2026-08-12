@@ -178,7 +178,10 @@ duration, and peak concurrency. Read these together:
   first turn, so a swarm is dramatically more expensive than one long session
   doing the same work. This is the most common cause of a sudden inexplicable
   spike, and users often don't think of it as "their" usage.
-- **One session with hundreds of calls** = an agent loop that didn't terminate.
+- **One session with hundreds of calls** = something looped or ran for days.
+  Deep-dive it — `forensics.py <csv> --session <id-prefix>` — for its
+  timeline, context growth, idle gaps, and what resuming it after cache
+  expiry cost. Do this instead of trying to read the raw transcript.
 - **High cache writes relative to reads** = contexts being built rather than
   reused. Either the swarm above, or resuming a large session after the prompt
   cache expired. Writes cost roughly 12x what reads cost per token.

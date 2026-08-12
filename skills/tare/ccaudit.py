@@ -610,10 +610,11 @@ def run_checks(requests, tools, stats, tz, redact=False):
             # is named locally and withheld from anything meant for publishing.
             out.append(("flag", f"One session made {c} API calls",
                         ("" if redact else f"Session {s[:20]}… ")
-                        + "That volume usually means an agent loop that didn't "
-                        + ("terminate. Run --by session to find it, then read "
-                           "that transcript." if redact
-                           else "terminate. Read that transcript.")))
+                        + "That volume is far beyond interactive use. "
+                        + ("Run --by session to find it, then deep-dive it "
+                           "with forensics.py --session." if redact
+                           else f"Deep-dive it: forensics.py <csv> --session "
+                           f"{s[:8]}")))
 
     agg = tool_summary(tools)
     if agg:

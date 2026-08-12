@@ -100,6 +100,100 @@ def section(title):
     print(f"\n{title}\n" + "-" * len(title))
 
 
+def report_session_detail(rows, prefix):
+    """The story of one session: how its cost grew and where it went wrong.
+    Returns an exit code; 0 on success."""
+    ids = sorted({r.get("session", "") for r in rows})
+    hits = [s for s in ids if s.startswith(prefix)]
+    if not hits:
+        print(f"No session starting with '{prefix}' in this CSV.",
+              file=sys.stderr)
+        near = [s for s in ids if prefix[:4] in s][:5]
+        if near:
+            print("Close matches: " + ", ".join(n[:12] for n in near),
+                  file=sys.stderr)
+        return 1
+    if len(hits) > 1:
+        print(f"'{prefix}' matches {len(hits)} sessions — be more specific:",
+              file=sys.stderr)
+        for s in hits[:8]:
+            print(f"  {s[:16]}", file=sys.stderr)
+        return 1
+    sid = hits[0]
+    rs = sorted((r for r in rows if r.get("session") == sid),
+                key=lambda r: r["t"])
+
+    total_w = sum(r["w"] for r in rows) or 1.0
+    w = sum(r["w"] for r in rs)
+    side = sum(1 for r in rs if (r.get("sidechain") or "").lower() == "true")
+    span = rs[-1]["t"] - rs[0]["t"]
+    models = Counter(r.get("model", "?") for r in rs)
+
+    section(f"Session {sid[:16]} — {rs[0].get('project', '?')[-40:]}")
+    print(f"requests : {len(rs):,}" + (f" ({side} sidechain)" if side else ""))
+    print(f"span     : {rs[0]['t']:%m-%d %H:%M} → {rs[-1]['t']:%m-%d %H:%M} "
+          f"({span.total_seconds() / 3600:.1f}h)")
+    print(f"models   : " + ", ".join(f"{m} ({c})" for m, c in
+                                     models.most_common(3)))
+    print(f"tokens   : in {human(sum(r['input_tokens'] for r in rs))} · "
+          f"out {human(sum(r['output_tokens'] for r in rs))} · "
+          f"cache_w {human(sum(r['cache_creation_input_tokens'] for r in rs))}"
+          f" · cache_r {human(sum(r['cache_read_input_tokens'] for r in rs))}")
+    print(f"weight   : {w:.1f}  ({100 * w / total_w:.1f}% of this CSV)")
+
+    # context growth: cache_read per request approximates context size
+    section("Context growth")
+    first_cr = rs[0]["cache_read_input_tokens"]
+    peak_i, peak = max(enumerate(rs),
+                       key=lambda ir: ir[1]["cache_read_input_tokens"])
+    print(f"first request re-sends {human(first_cr)}; the peak re-sends "
+          f"{human(peak['cache_read_input_tokens'])} "
+          f"(request #{peak_i + 1}, {peak['t']:%m-%d %H:%M})")
+    print("Every request re-sends the whole context, so a session's cost is")
+    print("context size × how many requests follow. Big early, long after —")
+    print("that is the expensive shape.")
+
+    # timeline in ≤20 chunks of equal request count
+    section("Timeline")
+    n_chunks = min(20, len(rs))
+    size = max(1, len(rs) // n_chunks)
+    chunks = [rs[i:i + size] for i in range(0, len(rs), size)]
+    mx = max(sum(r["w"] for r in c) for c in chunks) or 1.0
+    for c in chunks:
+        cw = sum(r["w"] for r in c)
+        bar = "█" * max(1, round(10 * cw / mx))
+        print(f"  {c[0]['t']:%m-%d %H:%M}  n={len(c):>4}  w={cw:>7.1f}  "
+              f"peak_ctx={human(max(r['cache_read_input_tokens'] for r in c)):>8}  {bar}")
+
+    # idle gaps and cache rebuilds after them
+    gaps = []
+    for a, b in zip(rs, rs[1:]):
+        mins = (b["t"] - a["t"]).total_seconds() / 60
+        if mins > 30:
+            gaps.append((a["t"], mins, b["cache_creation_input_tokens"]))
+    if gaps:
+        section("Idle gaps")
+        rebuilt = [(t, m, cw) for t, m, cw in gaps if cw > 10_000]
+        print(f"{len(gaps)} gap(s) longer than 30 min.")
+        for t, m, cw in gaps[:8]:
+            note = f"  → next request wrote {human(cw)} cache" if cw > 10_000 \
+                else ""
+            print(f"  {t:%m-%d %H:%M}  idle {m:.0f} min{note}")
+        if rebuilt:
+            tot = sum(cw for _, _, cw in rebuilt)
+            print(f"\n  After {len(rebuilt)} of them the context was rebuilt "
+                  f"from scratch — the prompt")
+            print(f"  cache had expired. Resuming this session instead of "
+                  f"starting fresh")
+            print(f"  cost ~{human(tot)} cache-write tokens at 1.25x the "
+                  f"input rate.")
+    if len(rs) > 400:
+        print("\nThis session's request count is far beyond interactive use.")
+        print("If you don't recognise it, something programmatic drove it —")
+        print("check schedulers, SDK scripts and CI around its start time.")
+    return 0
+
+
 def report_days(rows):
     section("Daily totals")
     days = defaultdict(lambda: {"n": 0, "w": 0.0, "tot": 0, "cw": 0, "cr": 0})
@@ -239,6 +333,8 @@ def main():
     p.add_argument("csv", help="output of `ccaudit.py --csv`")
     p.add_argument("--tz", type=float, default=None, help="local UTC offset in hours")
     p.add_argument("--day", help="restrict deep analysis to YYYY-MM-DD")
+    p.add_argument("--session", metavar="ID",
+                   help="deep-dive one session (id prefix is enough)")
     p.add_argument("--at", help="report window load at YYYY-MM-DDTHH:MM local")
     p.add_argument("--window", type=float, default=5.0, help="window hours (default 5)")
     a = p.parse_args()
@@ -251,6 +347,9 @@ def main():
     if not rows:
         print(f"No usable rows in {a.csv}.", file=sys.stderr)
         return 1
+
+    if a.session:
+        return report_session_detail(rows, a.session)
 
     print("=" * 66)
     print(f"forensics — {len(rows):,} requests, "

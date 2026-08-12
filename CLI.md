@@ -93,9 +93,16 @@ one session with hundreds of calls:
 python3 skills/tare/ccaudit.py --days 7 --by session --top 10
 ```
 
-`--doctor` flags any session over 400 calls automatically. The session id is
-the transcript's filename under `~/.claude/projects/` — open it and read
-what it was doing.
+`--doctor` flags any session over 400 calls automatically. Then deep-dive
+it — a prefix of the id is enough:
+
+```bash
+python3 skills/tare/forensics.py usage.csv --session 2d4f21e3
+```
+
+You get the session's story: request timeline, how its context grew, idle
+gaps, and — often the punchline — what resuming it after the prompt cache
+expired cost compared to starting fresh.
 
 **Detect automation you forgot about.** Scheduled jobs, SDK scripts, CI, a
 file watcher — anything invoking Claude Code programmatically shows a
