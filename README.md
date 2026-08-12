@@ -109,6 +109,9 @@ for the common asks — asking in plain words always works too:
 | `/tare share [days]` | redacted summary safe to post publicly |
 | `/tare why did I hit the limit yesterday` | any question works as the argument |
 
+<img width="2082" height="5376" alt="image" src="https://github.com/user-attachments/assets/24809e7c-065d-4ec1-99d1-d7ae44dd4bb3" />
+
+
 ## What you get back
 
 Not a wall of numbers — a cause. The answer to "why did I hit my limit
