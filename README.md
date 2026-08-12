@@ -20,7 +20,7 @@ and that's exactly what these tools subtract.*
 One command, in any terminal:
 
 ```bash
-npx skills add OWNER/tare
+npx skills add kelviq/tare
 ```
 
 That's it. Nothing else to set up — no accounts, no packages, no

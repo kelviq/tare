@@ -7,7 +7,7 @@ product — every install method below just gets it in front of Claude Code.
 ## With the skills CLI (simplest)
 
 ```bash
-npx skills add OWNER/tare
+npx skills add kelviq/tare
 ```
 
 Installs the skill for Claude Code (and other agents the CLI supports).
@@ -17,7 +17,7 @@ installed into any other agent it will find nothing.
 ## Personal skill, by hand
 
 ```bash
-git clone https://github.com/OWNER/tare /tmp/tare &&
+git clone https://github.com/kelviq/tare /tmp/tare &&
   cp -r /tmp/tare/skills/tare ~/.claude/skills/tare
 ```
 
@@ -44,7 +44,7 @@ Travels with the codebase for a team.
 This repository is itself a plugin marketplace:
 
 ```
-/plugin marketplace add OWNER/tare
+/plugin marketplace add kelviq/tare
 /plugin install tare@tare
 ```
 
