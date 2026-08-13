@@ -346,6 +346,40 @@ request), retry counts (`CLAUDE_CODE_MAX_RETRIES` defaults to 10, so one
 transient failure can mean 11 attempts), and per-request `cost_usd` and
 `duration_ms`.
 
+## Flag reference
+
+Everything above in one place. Both scripts also answer `--help`.
+
+`ccaudit.py` — reads `~/.claude/projects`, writes only what you ask for:
+
+| Flag | Does | Default |
+|---|---|---|
+| `--days N` | how far back to read | 7 |
+| `--by X` | table by `day`, `hour`, `model`, `session`, `project`, `version`, `tool` or `detail` (repeatable) | day, model, tool, session |
+| `--top N` | rows per table | 15 |
+| `--doctor` | run the automated findings | off |
+| `--panel` | one-screen summary, like `/usage` but local | off |
+| `--html PATH` | self-contained HTML report | — |
+| `--csv PATH` | one row per API request, for forensics.py or a spreadsheet | — |
+| `--share PATH` | redacted summary safe to post publicly | — |
+| `--dir PATH` | read a different projects directory | `~/.claude/projects` |
+| `--tz H` | local UTC offset in hours | from system |
+| `--dump-sample` | print one raw usage entry, for checking the parser | — |
+
+`forensics.py <csv>` — reads only the CSV `--csv` wrote:
+
+| Flag | Does |
+|---|---|
+| *(none)* | full pass: daily table, spikes, window, session shape, concentration |
+| `--day YYYY-MM-DD` | deep analysis of one day |
+| `--at YYYY-MM-DDTHH:MM` | window load at a moment — "how full was it when I got locked out?" |
+| `--window H` | window size in hours; `168` analyses the weekly cap |
+| `--session ID` | one session's story: timeline, context growth, idle gaps (prefix is enough) |
+| `--tz H` | local UTC offset in hours |
+
+`./ccaudit` with no arguments = `--days 7 --doctor --html report.html`, then
+opens the report.
+
 ## Caveats
 
 The transcript format is internal to Claude Code and changes between
