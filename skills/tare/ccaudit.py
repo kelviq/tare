@@ -58,6 +58,7 @@ ESTIMATED_FAMILIES = {"fable", "mythos"}
 CACHE_WRITE_MULT = 1.25
 CACHE_READ_MULT = 0.10
 CHARS_PER_TOKEN = 4.0     # rough, for sizing tool results
+IMAGE_TOKENS = 1600       # ceiling the API charges for one image block
 
 USAGE_KEYS = ("input_tokens", "output_tokens",
               "cache_creation_input_tokens", "cache_read_input_tokens")
@@ -127,6 +128,16 @@ def est_tokens(obj):
         return 0
     if isinstance(obj, str):
         return int(len(obj) / CHARS_PER_TOKEN)
+    if isinstance(obj, list):
+        return sum(est_tokens(b) for b in obj)
+    if isinstance(obj, dict) and obj.get("type") == "image":
+        # An image block carries its base64 payload inline, so sizing it by
+        # characters overstates it by roughly 100x. The API prices an image
+        # by pixel area and scales large images down to about 1.6K tokens,
+        # so that ceiling is the estimate.
+        return IMAGE_TOKENS
+    if isinstance(obj, dict) and obj.get("type") == "text":
+        return est_tokens(obj.get("text"))
     try:
         return int(len(json.dumps(obj, default=str)) / CHARS_PER_TOKEN)
     except (TypeError, ValueError):
