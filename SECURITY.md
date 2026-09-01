@@ -40,11 +40,25 @@ something: `socket`, `urllib`, `http`, `ssl`, or a third-party client. The
 three analysis scripts import none of them:
 
 ```bash
-grep -nE 'socket|urllib|http|requests|ssl' skills/tare/*.py
+grep -nE '^[[:space:]]*(import|from)[[:space:]]+(socket|urllib|http|ssl|requests|httpx|aiohttp)' skills/tare/*.py
 ```
 
-You will find zero matches. (Run the same grep on `ccwatch.py` and you'll
-see its `urllib` import — consistent with the table above.) The scripts are
+You will find zero matches. Anchoring on the import statement matters: a bare
+`grep -nE 'socket|urllib|http|requests|ssl'` returns 97 lines of noise here,
+because `requests` is also the name of a local variable throughout
+`ccaudit.py` and `https?` appears in a URL regex. A check that cries wolf on
+its own clean codebase teaches you to ignore it, so keep this one precise.
+
+You should also confirm nothing shells out or evaluates strings, which is the
+other way code reaches the network:
+
+```bash
+grep -nE 'subprocess|os\.(system|popen)|\beval\(|\bexec\(|__import__' skills/tare/*.py
+```
+
+Zero matches again. (Run the first grep on `ccwatch.py` and you'll see its
+`urllib` import, and the second one its `subprocess` import for reading the
+macOS Keychain — both consistent with the table above.) The scripts are
 dependency-free stdlib Python precisely so that this audit stays possible:
 there is no lockfile, no `node_modules`, no transitive anything. The whole
 analysis engine is three files you can read in an evening.
