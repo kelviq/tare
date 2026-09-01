@@ -34,7 +34,19 @@ from pathlib import Path
 try:
     import ccreport
 except ImportError:
+    # The script's own directory is not always on sys.path: PYTHONSAFEPATH=1
+    # and `python -P` both remove it, which is a reasonable hardening choice
+    # for an agent running untrusted code. Load the sibling by path instead,
+    # so --html does not fail on a machine that sets it.
+    import importlib.util as _ilu
+
+    _sibling = Path(__file__).resolve().parent / "ccreport.py"
     ccreport = None
+    if _sibling.is_file():
+        _spec = _ilu.spec_from_file_location("ccreport", _sibling)
+        if _spec and _spec.loader:
+            ccreport = _ilu.module_from_spec(_spec)
+            _spec.loader.exec_module(ccreport)
 
 __version__ = "0.2.0"
 
@@ -360,6 +372,42 @@ def detail_summary(tools):
 
 # --- Text output -----------------------------------------------------------
 
+def home_slug():
+    """The slug Claude Code derives from the user's home directory."""
+    return re.sub(r"[^A-Za-z0-9]", "-", str(Path.home()))
+
+
+def project_labels(names, width=33):
+    """Map project slugs to labels that fit `width` and stay distinguishable.
+
+    A slug is an absolute path with every separator replaced, so on Windows
+    each one opens with the same `C--Users-<user>` and the distinctive tail is
+    what a plain slice cuts. Replace the home prefix with `~`, and only then
+    fall back to trimming. Slugs that already fit are returned untouched.
+    """
+    names = list(names)
+    home = home_slug()
+    out = {}
+    for n in names:
+        rest = n
+        if len(rest) > width and rest.startswith(home) and len(rest) > len(home):
+            rest = "~" + rest[len(home):]
+        out[n] = rest
+    long = [n for n in names if len(out[n]) > width]
+    # Whatever still overflows: drop the segment prefix those share, since it
+    # is by definition not what tells them apart.
+    if len(long) > 1:
+        common = os.path.commonprefix([out[n] for n in long])
+        cut = common.rfind("-")
+        if cut > 0:
+            for n in long:
+                out[n] = out[n][cut + 1:]
+    for n in names:
+        if len(out[n]) > width:
+            out[n] = "…" + out[n][-(width - 1):]
+    return out
+
+
 def print_table(title, buckets, top=None, label="key"):
     rows = sorted(buckets.items(), key=lambda kv: kv[1]["weight"], reverse=True)
     if top:
@@ -446,9 +494,10 @@ def print_panel(requests, tools, stats, tz, days):
     print("\nWhat's using your limits?" + " " * 21 + "share of weight")
     by_proj = sorted(accumulate(requests, lambda r: r["project"]).items(),
                      key=lambda kv: -kv[1]["weight"])[:4]
+    label = project_labels([n for n, _ in by_proj])
     for name, b in by_proj:
         frac = b["weight"] / total_w
-        print(f"  {name[-33:]:<35} {bar(frac)} {100 * frac:>4.0f}%")
+        print(f"  {label[name]:<35} {bar(frac)} {100 * frac:>4.0f}%")
 
     agg = tool_summary(tools)
     if agg:
@@ -639,8 +688,8 @@ def run_checks(requests, tools, stats, tz, redact=False):
 
 def build_html(requests, tools, stats, tz, days, root, path):
     if ccreport is None:
-        print("ccreport.py must sit next to ccaudit.py for --html.",
-              file=sys.stderr)
+        print("--html needs ccreport.py next to ccaudit.py; looked in "
+              f"{Path(__file__).resolve().parent}", file=sys.stderr)
         return False
     R, e = ccreport, ccreport.esc
     total_w = sum(weight(r) for r in requests) or 1.0
