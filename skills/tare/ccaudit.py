@@ -22,6 +22,7 @@ MIT licensed.
 """
 
 import argparse
+import base64
 import csv
 import datetime as dt
 import json
@@ -58,6 +59,14 @@ ESTIMATED_FAMILIES = {"fable", "mythos"}
 CACHE_WRITE_MULT = 1.25
 CACHE_READ_MULT = 0.10
 CHARS_PER_TOKEN = 4.0     # rough, for sizing tool results
+# Images are charged by pixel count, not by the size of their base64. The API
+# shrinks the long edge to IMAGE_MAX_EDGE first, then prices the result at one
+# token per IMAGE_PIXELS_PER_TOKEN pixels.
+IMAGE_MAX_EDGE = 1568
+IMAGE_PIXELS_PER_TOKEN = 750
+IMAGE_B64_MIN = 512          # below this a payload cannot be a real image
+IMAGE_B64_PROBE = 4096       # only this much base64 is decoded, to read a header
+IMAGE_B64_HEAD = re.compile(r"^[A-Za-z0-9+/]+$")
 
 USAGE_KEYS = ("input_tokens", "output_tokens",
               "cache_creation_input_tokens", "cache_read_input_tokens")
@@ -122,13 +131,87 @@ def normalize_tool(name, tool_input):
     return name, None
 
 
+def _image_size(head):
+    """(width, height) from the leading bytes of a PNG/GIF/JPEG, else None."""
+    if head[:8] == b"\x89PNG\r\n\x1a\n" and head[12:16] == b"IHDR":
+        return (int.from_bytes(head[16:20], "big"),
+                int.from_bytes(head[20:24], "big"))
+    if head[:6] in (b"GIF87a", b"GIF89a"):
+        return (int.from_bytes(head[6:8], "little"),
+                int.from_bytes(head[8:10], "little"))
+    if head[:2] == b"\xff\xd8":                      # JPEG: walk to a SOF marker
+        i = 2
+        while i + 9 < len(head):
+            if head[i] != 0xFF:
+                i += 1
+                continue
+            marker = head[i + 1]
+            length = int.from_bytes(head[i + 2:i + 4], "big")
+            if 0xC0 <= marker <= 0xCF and marker not in (0xC4, 0xC8, 0xCC):
+                return (int.from_bytes(head[i + 7:i + 9], "big"),
+                        int.from_bytes(head[i + 5:i + 7], "big"))
+            if length <= 0:
+                break
+            i += 2 + length
+    return None
+
+
+def _image_size_from_b64(value):
+    """Image dimensions if `value` is base64 for an image we recognise."""
+    if len(value) < IMAGE_B64_MIN or IMAGE_B64_HEAD.match(value[:64]) is None:
+        return None
+    chunk = "".join(value[:IMAGE_B64_PROBE].split())
+    try:
+        head = base64.b64decode(chunk[:len(chunk) // 4 * 4])
+    except (ValueError, TypeError):
+        return None
+    return _image_size(head)
+
+
+def image_tokens(width, height):
+    """What the API charges for an image, not what its base64 weighs.
+
+    A screenshot reaches the transcript as a few hundred KB of base64, which
+    len(json)/4 scores as tens of thousands of tokens. The API prices an image
+    at (w*h)/750 after shrinking the long edge to 1568px, so about 1.6K at
+    worst. Counting the base64 overstates one image read by 40-70x, which is
+    enough to make a handful of screenshots dominate every ranking this tool
+    produces: measured on one 30-day window, total amplified tokens fell from
+    1.74B to 0.81B once images were priced this way, and the top tool flipped
+    from Read to Bash.
+    """
+    longest = max(width, height)
+    if longest > IMAGE_MAX_EDGE:
+        scale = IMAGE_MAX_EDGE / longest
+        width, height = width * scale, height * scale
+    return max(1, int(width * height / IMAGE_PIXELS_PER_TOKEN))
+
+
+def _price_images(obj):
+    """Swap recognised image payloads for a stand-in of the charged size.
+
+    Only payloads whose magic bytes identify a PNG/GIF/JPEG are touched. A
+    base64 blob we cannot identify is left exactly as it was, so this never
+    guesses a size down.
+    """
+    if isinstance(obj, dict):
+        return {k: _price_images(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_price_images(v) for v in obj]
+    if isinstance(obj, str):
+        size = _image_size_from_b64(obj)
+        if size and all(size):
+            return "i" * int(image_tokens(*size) * CHARS_PER_TOKEN)
+    return obj
+
+
 def est_tokens(obj):
     if obj is None:
         return 0
     if isinstance(obj, str):
         return int(len(obj) / CHARS_PER_TOKEN)
     try:
-        return int(len(json.dumps(obj, default=str)) / CHARS_PER_TOKEN)
+        return int(len(json.dumps(_price_images(obj), default=str)) / CHARS_PER_TOKEN)
     except (TypeError, ValueError):
         return int(len(str(obj)) / CHARS_PER_TOKEN)
 
